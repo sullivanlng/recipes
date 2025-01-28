@@ -230,12 +230,17 @@ class SyncForm(forms.ModelForm):
 
 class BatchEditForm(forms.Form):
     search = forms.CharField(label=_('Search String'))
-    keywords = forms.ModelMultipleChoiceField(queryset=Keyword.objects.none(), required=False, widget=MultiSelectWidget)
+    keywords = forms.ModelMultipleChoiceField(
+        queryset=Keyword.objects.none(),
+        required=False,
+        widget=MultiSelectWidget
+    )
 
     def __init__(self, *args, **kwargs):
         space = kwargs.pop('space')
         super().__init__(*args, **kwargs)
-        self.fields['keywords'].queryset = Keyword.objects.filter(space=space).all().order_by('id')
+        self.fields['keywords'].queryset = Keyword.objects.filter(space=space).order_by('order')
+
 
 
 class ImportRecipeForm(forms.ModelForm):

@@ -643,6 +643,8 @@ class Keyword(ExportModelOperationsMixin('keyword'), TreeModel, PermissionModelM
     created_at = models.DateTimeField(auto_now_add=True)  # TODO deprecate
     updated_at = models.DateTimeField(auto_now=True)  # TODO deprecate
 
+    order = models.PositiveIntegerField(default=0)
+
     space = models.ForeignKey(Space, on_delete=models.CASCADE)
     objects = ScopedManager(space='space', _manager_class=TreeManager)
 
@@ -651,6 +653,7 @@ class Keyword(ExportModelOperationsMixin('keyword'), TreeModel, PermissionModelM
             models.UniqueConstraint(fields=['space', 'name'], name='kw_unique_name_per_space')
         ]
         indexes = (Index(fields=['id', 'name']),)
+        ordering = ['order']
 
 
 class Unit(ExportModelOperationsMixin('unit'), models.Model, PermissionModelMixin, MergeModelMixin):
@@ -1026,6 +1029,8 @@ class Recipe(ExportModelOperationsMixin('recipe'), models.Model, PermissionModel
     space = models.ForeignKey(Space, on_delete=models.CASCADE)
 
     objects = ScopedManager(space='space', _manager_class=RecipeManager)
+
+    order = models.IntegerField(default=0, help_text="Order of the recipe for sorting purposes.")
 
     def __str__(self):
         return self.name

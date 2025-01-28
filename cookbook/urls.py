@@ -7,6 +7,8 @@ from rest_framework.schemas import get_schema_view
 
 from cookbook.version_info import TANDOOR_VERSION
 from recipes.settings import DEBUG, PLUGINS
+from cookbook.views.api import UpdateKeywordOrderView
+from django.urls import path
 
 from .models import (Automation, Comment, CustomFilter, Food, InviteLink, Keyword, PropertyType,
                      Recipe, RecipeBook, RecipeBookEntry, RecipeImport, Space, Step,
@@ -102,6 +104,7 @@ urlpatterns = [
     path('new/recipe-import/<int:import_id>/', new.create_new_external_recipe, name='new_recipe_import'),
     path('new/share-link/<int:pk>/', new.share_link, name='new_share_link'),
     path('edit/recipe/<int:pk>/', edit.switch_recipe, name='edit_recipe'),
+    path('api/keywords/update-order/', UpdateKeywordOrderView.as_view(), name='update_keyword_order'),
 
     # for internal use only
     path('edit/recipe/internal/<int:pk>/', edit.internal_recipe_update, name='edit_internal_recipe'),
