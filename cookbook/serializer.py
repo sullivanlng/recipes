@@ -462,9 +462,9 @@ class KeywordLabelSerializer(serializers.ModelSerializer):
         list_serializer_class = SpaceFilterSerializer
         model = Keyword
         fields = (
-            'id', 'label',
+            'id', 'label', 'order'
         )
-        read_only_fields = ('id', 'label')
+        read_only_fields = ('id', 'label', 'order')
 
 
 class KeywordSerializer(UniqueFieldsMixin, ExtendedRecipeMixin):
@@ -486,7 +486,7 @@ class KeywordSerializer(UniqueFieldsMixin, ExtendedRecipeMixin):
         model = Keyword
         fields = (
             'id', 'name', 'label', 'description', 'image', 'parent', 'numchild', 'numrecipe', 'created_at',
-            'updated_at', 'full_name')
+            'updated_at', 'full_name', 'order')
         read_only_fields = ('id', 'label', 'numchild', 'parent', 'image')
 
 
@@ -911,7 +911,7 @@ class RecipeOverviewSerializer(RecipeBaseSerializer):
         fields = (
             'id', 'name', 'description', 'image', 'keywords', 'working_time',
             'waiting_time', 'created_by', 'created_at', 'updated_at',
-            'internal', 'servings', 'servings_text', 'rating', 'last_cooked', 'new', 'recent'
+            'internal', 'servings', 'servings_text', 'rating', 'last_cooked', 'new', 'recent',
         )
         read_only_fields = ['image', 'created_by', 'created_at']
 
@@ -938,7 +938,7 @@ class RecipeSerializer(RecipeBaseSerializer):
             'internal', 'show_ingredient_overview', 'nutrition', 'properties', 'food_properties', 'servings',
             'file_path', 'servings_text', 'rating',
             'last_cooked',
-            'private', 'shared',
+            'private', 'shared', 
         )
         read_only_fields = ['image', 'created_by', 'created_at', 'food_properties']
 
@@ -949,9 +949,23 @@ class RecipeSerializer(RecipeBaseSerializer):
         return super().validate(data)
 
     def create(self, validated_data):
-        validated_data['created_by'] = self.context['request'].user
-        validated_data['space'] = self.context['request'].space
-        return super().create(validated_data)
+        keywords_data = validated_data.pop('keywords', [])
+        recipe = super().create(validated_data)
+        self._save_keywords(recipe, keywords_data)
+        return recipe
+    
+    def update(self, instance, validated_data):
+        keywords_data = validated_data.pop('keywords', [])
+        recipe = super().update(instance, validated_data)
+        self._save_keywords(recipe, keywords_data)
+        return recipe
+
+    def _save_keywords(self, recipe, keywords_data):
+        for keyword_data in keywords_data:
+            if 'id' in keyword_data:
+                keyword = Keyword.objects.get(id=keyword_data['id'])
+                keyword.order = keyword_data.get('order', keyword.order)
+                keyword.save()
 
 
 class RecipeImageSerializer(WritableNestedModelSerializer):

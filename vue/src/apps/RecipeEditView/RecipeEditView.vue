@@ -70,10 +70,25 @@
                     <input class="form-control" id="id_servings_text" v-model="recipe.servings_text" maxlength="32"/>
                     <br/>
                     <label for="id_name"> {{ $t("Keywords") }}</label>
-                    <multiselect
-                        v-model="recipe.keywords"
+                    <div>
+                        <draggable v-model="recipe.keywords" group="keywords" handle=".handle" @end="sortKeywords" :empty-insert-threshold="10">
+                            <div v-for="(keyword, index) in recipe.keywords" :key="index" class="d-flex align-items-center mb-2">
+                                <i class="fas fa-arrows-alt handle mr-2" style="cursor: grab;"></i>
+                                <div class="flex-grow-1">
+                                    <span class="badge badge-primary p-2" style="cursor: pointer;">
+                                        {{ keyword.label || keyword }}
+                                    </span>
+                                </div>
+                                <button class="btn btn-danger btn-sm ml-2" @click="removeKeyword(index)">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            </div>
+                        </draggable>
+                    </div>
+                    <multiselect 
+                        v-model="newKeyword"
                         :options="keywords"
-                        :close-on-select="false"
+                        :close-on-select="true"
                         :clear-on-select="true"
                         :hide-selected="true"
                         :preserve-search="true"
@@ -89,14 +104,14 @@
                         label="label"
                         track-by="id"
                         id="id_keywords"
-                        :multiple="true"
+                        :multiple="false"
                         :loading="keywords_loading"
                         @search-change="searchKeywords"
                     >
                         <template v-slot:noOptions>{{ $t("empty_list") }}</template>
                     </multiselect>
-
                 </div>
+                
             </div>
 
             <div class="row pt-2">
@@ -819,6 +834,7 @@ export default {
             recipe_changed: undefined,
             keywords: [],
             keywords_loading: false,
+            newKeyword: null,
             foods: [],
             foods_loading: false,
             units: [],
@@ -966,51 +982,34 @@ export default {
                 })
         },
         updateRecipe: function (view_after) {
-            let apiFactory = new ApiApiFactory()
+            let apiFactory = new ApiApiFactory();
 
-            this.normalizeEnergy()
-
-            this.sortSteps()
+            this.sortSteps(); // Tri des étapes
             for (let s of this.recipe.steps) {
-                this.sortIngredients(s)
+                this.sortIngredients(s); // Tri des ingrédients
             }
 
-            if (this.recipe.waiting_time === "" || isNaN(this.recipe.waiting_time)) {
-                this.recipe.waiting_time = 0
-            }
-            if (this.recipe.working_time === "" || isNaN(this.recipe.working_time)) {
-                this.recipe.working_time = 0
-            }
+            this.recipe.keywords = this.recipe.keywords.map((keyword, index) => {
+                keyword.order = index; // Assurez-vous que l'ordre est bien défini
+                return keyword;
+            });
 
-            this.recipe.servings = Math.floor(this.recipe.servings) // temporary fix until a proper framework for frontend input validation is established
-            if (this.recipe.servings === "" || isNaN(this.recipe.servings) || this.recipe.servings === 0) {
-                this.recipe.servings = 1
-            }
-
-            this.recipe.steps.forEach(x => {
-                if (x.time === "") {
-                    x.time = 0
-                }
-            })
+            console.log("Mots-clés envoyés à l'API :", this.recipe.keywords);
 
             apiFactory
                 .updateRecipe(this.recipe_id, this.recipe, {})
                 .then((response) => {
-                    StandardToasts.makeStandardToast(this, StandardToasts.SUCCESS_UPDATE)
-                    this.recipe_changed = false
-                    if (this.create_food) {
-                        apiFactory.createFood({
-                            name: this.recipe.food_name,
-                            recipe: {id: this.recipe.id, name: this.recipe.name}
-                        })
-                    }
+                    console.log("Réponse de l'API :", response.data);
+                    StandardToasts.makeStandardToast(this, StandardToasts.SUCCESS_UPDATE);
+                    this.recipe_changed = false; // Réinitialise l'état modifié
                     if (view_after) {
-                        location.href = resolveDjangoUrl("view_recipe", this.recipe_id)
+                        location.href = resolveDjangoUrl("view_recipe", this.recipe_id);
                     }
                 })
                 .catch((err) => {
-                    StandardToasts.makeStandardToast(this, StandardToasts.FAIL_UPDATE, err)
-                })
+                    console.error("Erreur lors de la sauvegarde :", err);
+                    StandardToasts.makeStandardToast(this, StandardToasts.FAIL_UPDATE, err);
+                });
         },
         uploadImage: function (file) {
             let apiClient = new ApiApiFactory()
@@ -1137,8 +1136,22 @@ export default {
             this.recipe.steps[step].ingredients[id] = new_unit
         },
         addKeyword: function (tag) {
-            let new_keyword = {label: tag, name: tag}
-            this.recipe.keywords.push(new_keyword)
+            const newKeyword = { label: tag, name: tag };
+            this.recipe.keywords.push(newKeyword);
+            this.newKeyword = null;
+        },
+        removeKeyword(index) {
+            if (confirm(this.$t("delete_confirmation", { object: this.$t("Keyword") }))) {
+                this.recipe.keywords.splice(index, 1);
+            }
+        },
+        sortKeywords() {
+            this.recipe.keywords.forEach((keyword, index) => {
+                keyword.order = index;
+            });
+            console.log("Ordre après tri :", this.recipe.keywords);
+
+            this.updateRecipe(false);
         },
         addProperty: function () {
             this.recipe.properties.push(
